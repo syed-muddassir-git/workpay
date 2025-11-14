@@ -106,7 +106,7 @@ Key configuration options in `.env`:
 # Application Configuration
 # ========================================
 NODE_ENV=development
-NODE_VERSION=22.21.0-alpine3.21
+NODE_VERSION=24.11.1-alpine
 
 # ========================================
 # Port Configuration

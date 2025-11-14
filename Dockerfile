@@ -1,10 +1,9 @@
-# syntax=docker/dockerfile:1
 # ========================================
 # Optimized Multi-Stage Dockerfile
 # Node.js TypeScript Application
 # ========================================
 
-ARG NODE_VERSION=22.21.0-alpine3.21
+ARG NODE_VERSION=24.11.1-alpine
 FROM node:${NODE_VERSION} AS base
 
 # Set working directory
@@ -91,7 +90,7 @@ CMD ["npm", "run", "dev:docker"]
 # ========================================
 # Production Stage
 # ========================================
-ARG NODE_VERSION=22.21.0-alpine3.21
+ARG NODE_VERSION=24.11.1-alpine
 FROM node:${NODE_VERSION} AS production
 
 # Set working directory
