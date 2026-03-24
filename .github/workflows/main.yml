@@ -1,4 +1,6 @@
 name: CI/CD – Node.js Application with Docker
+# Secrets for push to main (Docker Hub): DOCKER_USERNAME, DOCKERHUB_TOKEN, DOCKERHUB_PROJECT_NAME
+# PRs and non-main pushes: test job only (no registry push).
 
 on:
   push:
