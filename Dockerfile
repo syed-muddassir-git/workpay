@@ -1,140 +1,51 @@
-# ========================================
-# Optimized Multi-Stage Dockerfile
-# Node.js TypeScript Application
-# ========================================
+# =========================================
+# Stage 1: Build the React (Vite) + Node.js application
+# =========================================
+ARG NODE_VERSION=24.14.0-alpine
 
-ARG NODE_VERSION=24.11.1-alpine
-FROM node:${NODE_VERSION} AS base
+# Use a lightweight Node.js image for building (customizable via ARG)
+FROM node:${NODE_VERSION} AS builder
 
-# Set working directory
+# Set the working directory inside the container
 WORKDIR /app
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001 -G nodejs && \
-    chown -R nodejs:nodejs /app
+# Copy package-related files first to leverage Docker's caching mechanism
+COPY package.json package-lock.json* ./
 
-# ========================================
-# Dependencies Stage
-# ========================================
-FROM base AS deps
+# Install project dependencies using npm ci (ensures a clean, reproducible install)
+RUN npm ci
 
-# Copy package files
-COPY package*.json ./
-
-# Install production dependencies
-RUN --mount=type=cache,target=/root/.npm,sharing=locked \
-    npm ci --omit=dev && \
-    npm cache clean --force
-
-# Set proper ownership
-RUN chown -R nodejs:nodejs /app
-
-# ========================================
-# Build Dependencies Stage  
-# ========================================
-FROM base AS build-deps
-
-# Copy package files
-COPY package*.json ./
-
-# Install all dependencies with build optimizations
-RUN --mount=type=cache,target=/root/.npm,sharing=locked \
-    npm ci --no-audit --no-fund && \
-    npm cache clean --force
-
-# Create necessary directories and set permissions
-RUN mkdir -p /app/node_modules/.vite && \
-    chown -R nodejs:nodejs /app
-
-# ========================================
-# Build Stage
-# ========================================
-FROM build-deps AS build
-
-# Copy only necessary files for building (respects .dockerignore)
-COPY --chown=nodejs:nodejs . .
-
-# Build the application
-RUN npm run build
-
-# Set proper ownership
-RUN chown -R nodejs:nodejs /app
-
-# ========================================
-# Development Stage
-# ========================================
-FROM build-deps AS development
-
-# Set environment
-ENV NODE_ENV=development \
-    NPM_CONFIG_LOGLEVEL=warn
-
-# Copy source files
+# Copy the rest of the application source code into the container
 COPY . .
 
-# Ensure all directories have proper permissions
-RUN mkdir -p /app/node_modules/.vite && \
-    chown -R nodejs:nodejs /app && \
-    chmod -R 755 /app
+# Build the application (client → dist/client, API bundle → dist/server.js)
+RUN npm run build
 
-# Switch to non-root user
-USER nodejs
+# Remove devDependencies so the runner stage can copy production node_modules only
+RUN npm prune --omit=dev
 
-# Expose ports
-EXPOSE 3000 5173 9229
+# =========================================
+# Stage 2: Run the Node.js server (Express + built client)
+# =========================================
+FROM node:${NODE_VERSION} AS runner
 
-# Start development server
-CMD ["npm", "run", "dev:docker"]
-
-# ========================================
-# Production Stage
-# ========================================
-ARG NODE_VERSION=24.11.1-alpine
-FROM node:${NODE_VERSION} AS production
-
-# Set working directory
+# Set the working directory
 WORKDIR /app
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001 -G nodejs && \
-    chown -R nodejs:nodejs /app
+# Set environment variable for production
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOST=0.0.0.0
 
-# Set optimized environment variables
-ENV NODE_ENV=production \
-    NODE_OPTIONS="--max-old-space-size=256 --no-warnings" \
-    NPM_CONFIG_LOGLEVEL=silent
+# Copy lockfiles, pruned node_modules, and build output from the builder stage
+COPY --from=builder --chown=node:node /app/package.json /app/package-lock.json* ./
+COPY --from=builder --chown=node:node /app/node_modules ./node_modules
+COPY --from=builder --chown=node:node /app/dist ./dist
 
-# Copy production dependencies from deps stage
-COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
-COPY --from=deps --chown=nodejs:nodejs /app/package*.json ./
-# Copy built application from build stage
-COPY --from=build --chown=nodejs:nodejs /app/dist ./dist
+# Switch to the non-root user
+USER node
 
-# Switch to non-root user for security
-USER nodejs
-
-# Expose port
+# Expose the application port
 EXPOSE 3000
 
-# Start production server
-CMD ["node", "dist/server.js"]
-
-# ========================================
-# Test Stage
-# ========================================
-FROM build-deps AS test
-
-# Set environment
-ENV NODE_ENV=test \
-    CI=true
-
-# Copy source files
-COPY --chown=nodejs:nodejs . .
-
-# Switch to non-root user
-USER nodejs
-
-# Run tests with coverage
-CMD ["npm", "run", "test:coverage"]
+ENTRYPOINT ["node", "dist/server.js"]

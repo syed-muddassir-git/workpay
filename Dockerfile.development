@@ -1,0 +1,28 @@
+# =========================================
+# Development — hot reload (Express + Vite)
+# =========================================
+ARG NODE_VERSION=24.14.0-alpine
+
+FROM node:${NODE_VERSION}
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --no-audit --no-fund
+
+RUN mkdir -p /app/node_modules/.vite
+
+COPY . .
+
+ENV NODE_ENV=development \
+    NPM_CONFIG_LOGLEVEL=warn
+
+# Run as root in dev so bind-mounted files (vite.config.ts, etc.) stay writable.
+# Host-owned mounts often deny uid 1000 (node), which breaks Vite’s config sidecar.
+# Production uses the separate production Dockerfile (non-root).
+
+EXPOSE 3000 5173 9229
+
+CMD ["npm", "run", "dev:docker"]

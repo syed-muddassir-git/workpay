@@ -16,7 +16,7 @@ It is used as part of the [official Docker Node.js sample](https://docs.docker.c
 - **Database**: PostgreSQL with automatic connection handling and health checks
 - **Development Experience**: Hot reload, file watching, automatic database startup
 - **Production-Ready**: Multi-stage Docker builds, security hardening, resource management
-- **Comprehensive Testing**: 101 passing tests with Vitest and React Testing Library
+- **Comprehensive Testing**: Full Vitest suite (client + server) with coverage
 - **Docker Optimized**: Separate development/production configurations with proper networking
 - **CI/CD Ready**: GitHub Actions workflows, Kubernetes deployment configurations
 
@@ -57,11 +57,11 @@ docker compose --profile prod up app-prod --build
 # Full-stack app: http://localhost:8080 (serves both API and frontend)
 # Health Check: http://localhost:8080/health
 
-# Run comprehensive test suite
-docker compose --profile test up app-test --build
+# Run tests (Vitest in container; includes Postgres via compose)
+docker compose --profile test run --rm --build app-test
 
-# Database operations
-docker compose --profile local up db-local -d  # Local database only
+# Database only (service name `db` — no extra profile)
+docker compose up db -d
 ```
 
 ### Run Locally
@@ -109,23 +109,19 @@ npm run db:logs
 
 ```bash
 # Check if database is running
-docker ps | grep todoapp-db-local
+docker ps | grep todoapp-db
 
 # View database logs
 npm run db:logs
 
-# Reset database
+# Restart database container
 npm run db:stop && npm run db:start
 ```
 
 ### Run Tests in Docker
 
 ```bash
-# Run all tests
-docker compose run --rm test
-
-# Run tests with coverage
-docker compose run --rm app npm run test:coverage
+docker compose --profile test run --rm --build app-test
 ```
 
 ## 🔧 Build System
@@ -188,10 +184,8 @@ dist/
 
 ## 📚 Documentation
 
-- **[Development Guide](docs/DEVELOPMENT.md)** - Local development setup and workflows
-- **[Build System](docs/BUILD_SYSTEM.md)** - esbuild configuration and architecture
-- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment strategies
-- **[Kubernetes Config](nodejs-sample-kubernetes.yaml)** - Production-ready K8s deployment
+- **[Docker & deployment guide](README.Docker.md)** — Dockerfiles, Compose profiles, ports, CI/CD secrets, troubleshooting
+- **[Kubernetes](nodejs-sample-kubernetes.yaml)** — Namespace, Postgres, app Deployment/Service, Ingress, HPA (update image and domains before apply)
 
 **Author**
 

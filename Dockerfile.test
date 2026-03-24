@@ -1,0 +1,26 @@
+# =========================================
+# Test — Vitest with coverage
+# =========================================
+ARG NODE_VERSION=24.14.0-alpine
+
+FROM node:${NODE_VERSION}
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --no-audit --no-fund
+
+RUN mkdir -p /app/node_modules/.vite
+
+COPY . .
+
+RUN chown -R node:node /app
+
+ENV NODE_ENV=test \
+    CI=true
+
+USER node
+
+CMD ["npm", "run", "test:coverage"]

@@ -20,9 +20,10 @@ vars:
   DEBUG_PORT: 9229
   
   # Build Configuration
-  DOCKERFILE: Dockerfile
-  NODE_VERSION: 24.11.1-alpine
-  ALPINE_VERSION: 3.20
+  DOCKERFILE_PRODUCTION: Dockerfile
+  DOCKERFILE_DEVELOPMENT: Dockerfile.development
+  DOCKERFILE_TEST: Dockerfile.test
+  NODE_VERSION: 24.14.0-alpine
   NODE_ENV: production
   
   # Docker Compose Configuration
@@ -43,10 +44,8 @@ tasks:
     desc: "Build development Docker image"
     cmds:
       - docker build 
-        --target development 
         --build-arg NODE_VERSION={{.NODE_VERSION}}
-        --build-arg ALPINE_VERSION={{.ALPINE_VERSION}}
-        -f {{.DOCKERFILE}} 
+        -f {{.DOCKERFILE_DEVELOPMENT}} 
         -t {{.IMAGE_NAME}}:dev .
   
   dev:run:
@@ -71,10 +70,8 @@ tasks:
     desc: "Build production Docker image"
     cmds:
       - docker build 
-        --target production 
         --build-arg NODE_VERSION={{.NODE_VERSION}}
-        --build-arg ALPINE_VERSION={{.ALPINE_VERSION}}
-        -f {{.DOCKERFILE}} 
+        -f {{.DOCKERFILE_PRODUCTION}} 
         -t {{.IMAGE_NAME}}:{{.IMAGE_TAG}} .
   
   build:multi:
@@ -82,10 +79,8 @@ tasks:
     cmds:
       - docker buildx build 
         --platform linux/amd64,linux/arm64 
-        --target production 
         --build-arg NODE_VERSION={{.NODE_VERSION}}
-        --build-arg ALPINE_VERSION={{.ALPINE_VERSION}}
-        -f {{.DOCKERFILE}} 
+        -f {{.DOCKERFILE_PRODUCTION}} 
         -t {{.FULL_IMAGE_NAME}}:{{.IMAGE_TAG}} 
         --push .
 
@@ -93,10 +88,8 @@ tasks:
     desc: "Build test Docker image"
     cmds:
       - docker build 
-        --target test 
         --build-arg NODE_VERSION={{.NODE_VERSION}}
-        --build-arg ALPINE_VERSION={{.ALPINE_VERSION}}
-        -f {{.DOCKERFILE}} 
+        -f {{.DOCKERFILE_TEST}} 
         -t {{.IMAGE_NAME}}:test .
 
   # ========================================

@@ -160,4 +160,6 @@ $RECYCLE.BIN/
 .stylelintcache
 .parcel-cache/
 .vite/
+# Sidecar file Vite creates beside vite.config.ts when bundling config (common in Docker dev)
+vite.config.ts.timestamp-*.mjs
 storybook-static/

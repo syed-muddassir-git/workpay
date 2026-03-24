@@ -1,6 +1,13 @@
 # ========================================
 # Node.js Todo App - Kubernetes Deployment
 # ========================================
+#
+# Prerequisites
+# - Build and push the production image (root Dockerfile → target stage `runner`).
+#   Replace `ghcr.io/your-username/docker-nodejs-sample:latest` below with your registry path.
+# - Set ConfigMap ALLOWED_ORIGINS (and Ingress host/TLS) to your real domain.
+# - Pod security: runAsUser 1000 matches the official `node` image non-root user.
+#
 
 apiVersion: v1
 kind: Namespace
@@ -20,6 +27,10 @@ metadata:
   namespace: todoapp
 data:
   NODE_ENV: "production"
+  HOST: "0.0.0.0"
+  PORT: "3000"
+  HOME: "/tmp"
+  TMPDIR: "/tmp"
   ALLOWED_ORIGINS: "https://yourdomain.com"
   POSTGRES_HOST: "todoapp-postgres"
   POSTGRES_PORT: "5432"
@@ -160,7 +171,7 @@ metadata:
   labels:
     app: todoapp
 spec:
-  replicas: 3
+  replicas: 2
   selector:
     matchLabels:
       app: todoapp
@@ -171,8 +182,9 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
-        runAsUser: 1001
-        fsGroup: 1001
+        # Must match the official node image `node` user (uid/gid 1000)
+        runAsUser: 1000
+        fsGroup: 1000
       containers:
         - name: todoapp
           image: ghcr.io/your-username/docker-nodejs-sample:latest
@@ -187,6 +199,26 @@ spec:
                 configMapKeyRef:
                   name: todoapp-config
                   key: NODE_ENV
+            - name: HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: todoapp-config
+                  key: HOST
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: todoapp-config
+                  key: PORT
+            - name: HOME
+              valueFrom:
+                configMapKeyRef:
+                  name: todoapp-config
+                  key: HOME
+            - name: TMPDIR
+              valueFrom:
+                configMapKeyRef:
+                  name: todoapp-config
+                  key: TMPDIR
             - name: ALLOWED_ORIGINS
               valueFrom:
                 configMapKeyRef:
@@ -238,7 +270,8 @@ spec:
               cpu: "500m"
           securityContext:
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
+            # Node runtime may write caches under $HOME; match Compose (no read-only root)
+            readOnlyRootFilesystem: false
             capabilities:
               drop:
                 - ALL
