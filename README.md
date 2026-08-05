@@ -228,8 +228,236 @@ Your support helps me continue creating valuable content for the community. Than
 
 ### License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License.---
 
-CI Test
-CI Test 2
-CI Test 3
+# Workpay DevOps Assignment
+
+## Overview
+
+This repository was extended as part of the Workpay DevOps Assignment by deploying the application to Google Cloud Platform using Infrastructure as Code and CI/CD best practices.
+
+The deployment includes:
+
+- Docker containerization
+- Google Artifact Registry
+- Google Cloud Run
+- Google Cloud SQL (PostgreSQL)
+- GitHub → Cloud Build CI/CD
+- Terraform infrastructure management
+- IAM-secured Cloud Run service
+
+---
+
+# Architecture
+
+```text
+GitHub
+   │
+   ▼
+Cloud Build Trigger
+   │
+   ▼
+Docker Build
+   │
+   ▼
+Artifact Registry
+   │
+   ▼
+Cloud Run
+   │
+   ▼
+Cloud SQL (PostgreSQL)
+```
+
+---
+
+# Google Cloud Services
+
+| Service | Purpose |
+|----------|---------|
+| Cloud Run | Hosts the application |
+| Cloud SQL | PostgreSQL database |
+| Artifact Registry | Stores Docker images |
+| Cloud Build | Continuous Deployment |
+| Terraform | Infrastructure as Code |
+
+---
+
+# Terraform
+
+Terraform configuration is located in:
+
+```
+terraform/
+```
+
+Managed resources include:
+
+- Artifact Registry Repository
+- Cloud SQL Instance
+- Cloud SQL Database
+- Cloud SQL User
+- Cloud Run Service
+
+Useful commands:
+
+```bash
+cd terraform
+
+terraform init
+terraform validate
+terraform plan
+terraform output
+```
+
+---
+
+# CI/CD Pipeline
+
+Every push to the `main` branch automatically:
+
+1. Builds the Docker image.
+2. Pushes the image to Artifact Registry.
+3. Deploys the latest image to Cloud Run.
+
+Cloud Build deployment is fully automated through a GitHub trigger.
+
+---
+
+# Cloud Run Security
+
+The service is deployed **without public access**.
+
+Anonymous request:
+
+```bash
+curl https://todo-app-219904781419.us-central1.run.app/health
+```
+
+Response:
+
+```
+403 Forbidden
+```
+
+Authenticated request:
+
+```bash
+TOKEN=$(gcloud auth print-identity-token)
+
+curl \
+-H "Authorization: Bearer $TOKEN" \
+https://todo-app-219904781419.us-central1.run.app/health
+```
+
+Example:
+
+```json
+{
+  "success": true,
+  "message": "Server is healthy"
+}
+```
+
+---
+
+# Database Health Check
+
+```bash
+TOKEN=$(gcloud auth print-identity-token)
+
+curl \
+-H "Authorization: Bearer $TOKEN" \
+https://todo-app-219904781419.us-central1.run.app/health/db/
+```
+
+Example:
+
+```json
+{
+  "success": true,
+  "message": "Database connection is healthy"
+}
+```
+
+This endpoint verifies that the application is successfully connected to the Cloud SQL PostgreSQL instance.
+
+---
+
+# Cloud SQL
+
+Database Engine
+
+```
+PostgreSQL 16
+```
+
+Connection uses the Cloud SQL Unix socket:
+
+```
+/cloudsql/workpay-01:us-central1:todo-db
+```
+
+Environment variables configured in Cloud Run:
+
+```
+POSTGRES_HOST
+POSTGRES_PORT
+POSTGRES_DB
+POSTGRES_USER
+POSTGRES_PASSWORD
+```
+
+---
+
+# Artifact Registry
+
+Repository:
+
+```
+docker-repo
+```
+
+Location:
+
+```
+us-central1
+```
+
+---
+
+# Verification
+
+The deployment was verified using:
+
+- Successful Cloud Build pipeline
+- Successful Cloud Run deployment
+- Terraform validation
+- Authenticated `/health` endpoint
+- Authenticated `/health/db/` endpoint
+- Cloud SQL connectivity
+- Artifact Registry image deployment
+
+---
+
+# Manual Setup
+
+The following steps were completed manually before Terraform:
+
+- Create GCP Project
+- Enable required Google Cloud APIs
+- Configure IAM permissions
+- Create Cloud Build GitHub Trigger
+- Configure billing
+
+Terraform is used to manage the cloud infrastructure after the initial setup.
+
+---
+
+# Future Improvements
+
+- Store database credentials in Secret Manager
+- Use a remote Terraform backend (GCS)
+- Split Terraform into reusable modules
+- Add monitoring and alerting
+- Extend CI/CD with Terraform deployment
