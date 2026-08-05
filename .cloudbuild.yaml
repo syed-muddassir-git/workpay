@@ -1,0 +1,32 @@
+steps:
+  # Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - -t
+      - us-central1-docker.pkg.dev/$PROJECT_ID/docker-repo/todo-app:latest
+      - .
+
+  # Push the image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - push
+      - us-central1-docker.pkg.dev/$PROJECT_ID/docker-repo/todo-app:latest
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - todo-app
+      - --image=us-central1-docker.pkg.dev/$PROJECT_ID/docker-repo/todo-app:latest
+      - --region=us-central1
+      - --platform=managed
+      - --no-allow-unauthenticated
+      - --port=3000
+      - --add-cloudsql-instances=workpay-01:us-central1:todo-db
+      - --update-env-vars=POSTGRES_HOST=/cloudsql/workpay-01:us-central1:todo-db,POSTGRES_PORT=5432,POSTGRES_DB=todoapp,POSTGRES_USER=appuser,POSTGRES_PASSWORD=db_password
+
+images:
+  - us-central1-docker.pkg.dev/$PROJECT_ID/docker-repo/todo-app:latest
