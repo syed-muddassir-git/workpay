@@ -1,51 +1,44 @@
-# =========================================
-# Stage 1: Build the React (Vite) + Node.js application
-# =========================================
-ARG NODE_VERSION=24.14.0-alpine
+# ==== BUILD STAGE ====
+# First container: builds the application
+FROM node:22-alpine AS builder
 
-# Use a lightweight Node.js image for building (customizable via ARG)
-FROM node:${NODE_VERSION} AS builder
-
-# Set the working directory inside the container
 WORKDIR /app
 
-# Copy package-related files first to leverage Docker's caching mechanism
-COPY package.json package-lock.json* ./
+# Copy package files
+COPY package*.json ./
 
-# Install project dependencies using npm ci (ensures a clean, reproducible install)
-RUN npm ci
+# Install dependencies
+RUN npm install
 
-# Copy the rest of the application source code into the container
+# Copy source code
 COPY . .
 
-# Build the application (client → dist/client, API bundle → dist/server.js)
+# Build the application
 RUN npm run build
 
-# Remove devDependencies so the runner stage can copy production node_modules only
-RUN npm prune --omit=dev
 
-# =========================================
-# Stage 2: Run the Node.js server (Express + built client)
-# =========================================
-FROM node:${NODE_VERSION} AS runner
+# ==== PRODUCTION STAGE ====
+# Second container: runs the application (much smaller)
+FROM node:22-alpine
 
-# Set the working directory
+# Set working directory
 WORKDIR /app
 
-# Set environment variable for production
-ENV NODE_ENV=production
-ENV PORT=3000
-ENV HOST=0.0.0.0
+# Copy only package files from builder
+COPY package*.json ./
 
-# Copy lockfiles, pruned node_modules, and build output from the builder stage
-COPY --from=builder --chown=node:node /app/package.json /app/package-lock.json* ./
-COPY --from=builder --chown=node:node /app/node_modules ./node_modules
-COPY --from=builder --chown=node:node /app/dist ./dist
+# Install only production dependencies
+RUN npm install --production
 
-# Switch to the non-root user
-USER node
+# Copy built application from builder stage
+COPY --from=builder /app/dist /app/dist
 
-# Expose the application port
+# Expose port
 EXPOSE 3000
 
-ENTRYPOINT ["node", "dist/server.js"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+
+# Run the application
+CMD ["node", "dist/server.js"]
