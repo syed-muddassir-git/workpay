@@ -65,6 +65,7 @@ export class PostgresDatabase implements DatabaseInterface {
 
     try {
       const result = await this.client.query('SELECT * FROM todo_items ORDER BY name');
+
       return result.rows.map((row) => ({
         id: row.id,
         name: row.name,
@@ -80,11 +81,15 @@ export class PostgresDatabase implements DatabaseInterface {
     if (!this.client) throw new Error('Database not initialized');
 
     try {
-      const result = await this.client.query('SELECT * FROM todo_items WHERE id = $1', [id]);
+      const result = await this.client.query(
+        'SELECT * FROM todo_items WHERE id = $1',
+        [id]
+      );
 
       if (result.rows.length === 0) return null;
 
       const row = result.rows[0];
+
       return {
         id: row.id,
         name: row.name,
@@ -100,11 +105,11 @@ export class PostgresDatabase implements DatabaseInterface {
     if (!this.client) throw new Error('Database not initialized');
 
     try {
-      await this.client.query('INSERT INTO todo_items(id, name, completed) VALUES($1, $2, $3)', [
-        item.id,
-        item.name,
-        item.completed,
-      ]);
+      await this.client.query(
+        'INSERT INTO todo_items(id, name, completed) VALUES($1, $2, $3)',
+        [item.id, item.name, item.completed]
+      );
+
       console.log('Stored item:', item);
     } catch (err) {
       console.error('Unable to store item:', err);
@@ -132,6 +137,7 @@ export class PostgresDatabase implements DatabaseInterface {
     if (setParts.length === 0) return;
 
     values.push(id);
+
     const sql = `UPDATE todo_items SET ${setParts.join(', ')} WHERE id = $${paramIndex}`;
 
     try {
@@ -155,6 +161,14 @@ export class PostgresDatabase implements DatabaseInterface {
     }
   }
 
+  async healthCheck(): Promise<void> {
+    if (!this.client) {
+      throw new Error('Database not initialized');
+    }
+
+    await this.client.query('SELECT 1');
+  }
+
   private async getConfig() {
     const {
       POSTGRES_HOST: HOST,
@@ -169,13 +183,21 @@ export class PostgresDatabase implements DatabaseInterface {
 
     const host = HOST_FILE ? (await fs.readFile(HOST_FILE, 'utf8')).trim() : HOST;
     const user = USER_FILE ? (await fs.readFile(USER_FILE, 'utf8')).trim() : USER;
-    const password = PASSWORD_FILE ? (await fs.readFile(PASSWORD_FILE, 'utf8')).trim() : PASSWORD;
+    const password = PASSWORD_FILE
+      ? (await fs.readFile(PASSWORD_FILE, 'utf8')).trim()
+      : PASSWORD;
     const database = DB_FILE ? (await fs.readFile(DB_FILE, 'utf8')).trim() : DB;
 
     if (!host || !user || !password || !database) {
       throw new Error('Missing required PostgreSQL configuration');
     }
 
-    return { host, user, password, database, port: 5432 };
+    return {
+      host,
+      user,
+      password,
+      database,
+      port: 5432,
+    };
   }
 }

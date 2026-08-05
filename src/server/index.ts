@@ -14,7 +14,7 @@ const PORT = process.env.PORT || 3000;
 // Security middleware
 app.use(
   helmet({
-    contentSecurityPolicy: false, // Disable CSP for development
+    contentSecurityPolicy: false,
   })
 );
 
@@ -45,6 +45,26 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Database health check endpoint
+app.get('/health/db', async (req, res) => {
+  try {
+    await db.healthCheck();
+
+    res.json({
+      success: true,
+      message: 'Database connection is healthy',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Database connection failed',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
 // API routes
 app.use('/api/todos', todosRouter);
 
@@ -53,7 +73,6 @@ if (process.env.NODE_ENV === 'production') {
   const staticPath = resolve(process.cwd(), 'dist/client');
   app.use(express.static(staticPath));
 
-  // Catch-all route for SPA
   app.use((req, res, next) => {
     if (req.method === 'GET' && !req.path.startsWith('/api/')) {
       res.sendFile(resolve(staticPath, 'index.html'));
@@ -81,12 +100,10 @@ const gracefulShutdown = async (signal: string) => {
   }
 };
 
-// Register graceful shutdown handlers
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGUSR2', () => gracefulShutdown('SIGUSR2')); // Sent by nodemon
+process.on('SIGUSR2', () => gracefulShutdown('SIGUSR2'));
 
-// Initialize database and start server
 async function startServer() {
   try {
     await db.init();
@@ -99,10 +116,10 @@ async function startServer() {
       if (process.env.NODE_ENV !== 'production') {
         console.log(`API available at: http://localhost:${PORT}/api`);
         console.log(`Health check: http://localhost:${PORT}/health`);
+        console.log(`Database health: http://localhost:${PORT}/health/db`);
       }
     });
 
-    // Handle server errors
     server.on('error', (error) => {
       console.error('Server error:', error);
       process.exit(1);
