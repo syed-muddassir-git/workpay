@@ -33,6 +33,10 @@ RUN npm install --production
 # Copy built application from builder stage
 COPY --from=builder /app/dist /app/dist
 
+# Tell Express to serve the built React frontend and use production error messages.
+# Without this the static-file block in index.ts is skipped, causing GET / → 404.
+ENV NODE_ENV=production
+
 # Expose port
 EXPOSE 3000
 
